@@ -30,6 +30,9 @@ FORMS += \
 TRANSLATIONS += \
     HardwareVisualizer_zh_CN.ts
 
+RESOURCES += \
+    perfdata.txt
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin

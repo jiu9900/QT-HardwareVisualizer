@@ -3,6 +3,9 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+#include <QCoreApplication>
+#include <QDir>
+
 
 InfoManager::InfoManager(QObject *parent)
     : QObject(parent)
@@ -17,9 +20,19 @@ void InfoManager::setTextEdit(QTextEdit *textEdit)
 
 void InfoManager::loadPerfData()
 {
-    QFile file("perfdata.txt");
+    QString projectDir = QCoreApplication::applicationDirPath();
+
+    // 向上回溯两级到项目根目录
+    projectDir = QDir::cleanPath(projectDir + "/../..");
+
+    // 构建正确的文件路径
+    QString filePath = projectDir + "/HardwareVisualizer/perfdata.txt";
+    qDebug() << "尝试路径:" << filePath;
+
+    QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "无法打开性能数据文件";
+        qWarning() << "无法打开性能数据文件:" << filePath;
+        qWarning() << "错误信息:" << file.errorString();
         return;
     }
 
