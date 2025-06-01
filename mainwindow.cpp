@@ -66,7 +66,7 @@ void MainWindow::drawComponents()
 
         connect(scene, &QGraphicsScene::selectionChanged, this, [=]() {
             if (node->isSelected()) {
-                infoManager->showInfo("BusNode");
+                infoManager->showInfo("Bus");
             }
         });
     }
@@ -199,7 +199,7 @@ void MainWindow::drawComponents()
     traceLabel->setFlag(QGraphicsItem::ItemIsSelectable);
     connect(scene, &QGraphicsScene::selectionChanged, this, [=]() {
         if (traceLabel->isSelected()) {
-            infoManager->showInfo("L3Group");
+            infoManager->showInfo("cache_event_trace");
         }
     });
 
@@ -319,7 +319,7 @@ void MainWindow::drawModule(qreal x, qreal y, const QString &label, const QColor
     // 监听点击自己时显示模块信息
     connect(scene, &QGraphicsScene::selectionChanged, this, [=]() {
         if (rect->isSelected()) {
-            QString name = label.split('\n').first();  // 如 L3Cache1
+            QString name = label.split('\n').first();
             infoManager->showInfo(name);
         }
     });
