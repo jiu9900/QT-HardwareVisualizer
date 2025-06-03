@@ -8,6 +8,9 @@
 #include <QPen>
 #include <QBrush>
 #include <QtMath>
+#include <QGraphicsRectItem>
+#include <QGraphicsSceneHoverEvent>
+#include <QGraphicsDropShadowEffect>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -68,6 +71,8 @@ void MainWindow::drawComponents()
             if (node->isSelected()) {
                 infoManager->showInfo("Bus");
             }
+
+
         });
     }
 
@@ -134,7 +139,7 @@ void MainWindow::drawComponents()
 
     for (int i = 0; i < 4; ++i) {
         QPointF pos = l3Positions[i];
-        drawModule(pos.x(), pos.y(), QString("L3Cache%1\nport %2").arg(i).arg(l3Connections[i]), QColor(255, 200, 0));
+        drawModule(pos.x(), pos.y(), QString("L3Cache%1").arg(i), QColor(255, 200, 0));
 
         // 连接点改为模块上边中心
         QPointF moduleTopCenter = pos + QPointF(moduleWidth/2, 0);
@@ -208,7 +213,7 @@ void MainWindow::drawComponents()
     QPointF node2Center = busNodes[2] + QPointF(nodeSize/2, nodeSize/2);
     qreal memX = node2Center.x() - moduleWidth/2;
     qreal memY = 800;
-    drawModule(memX, memY, "MemoryNode0\nport 4", Qt::magenta);
+    drawModule(memX, memY, "MemoryNode0", Qt::magenta);
 
     // 添加 DMA 框在 MemoryNode0 下方
     qreal dmaX = memX;
@@ -256,8 +261,7 @@ void MainWindow::drawComponents()
     for (int i = 0; i < 4; ++i) {
         drawModule(cpuPositions[i].x(), cpuPositions[i].y(), QString("CPU%1").arg(i), QColor(0, 255, 255));
 
-        drawModule(l2Positions[i].x(), l2Positions[i].y(),
-                  QString("L2Cache%1\nport %2").arg(i).arg(l2Connections[i]), QColor(0, 255, 0));
+        drawModule(l2Positions[i].x(), l2Positions[i].y(), QString("L2Cache%1").arg(i), QColor(0, 255, 0));
 
         QPointF cpuBottomCenter = cpuPositions[i] + QPointF(moduleWidth/2, moduleHeight);
         QPointF l2TopCenter = l2Positions[i] + QPointF(moduleWidth/2, 0);
@@ -301,27 +305,93 @@ void MainWindow::drawComponents()
     }
 }
 
-void MainWindow::drawModule(qreal x, qreal y, const QString &label, const QColor &color)
-{
-    const int moduleWidth = 150;
-    const int moduleHeight = 80;
 
-    auto rect = scene->addRect(x, y, moduleWidth, moduleHeight, QPen(Qt::black), QBrush(color));
-    rect->setData(0, label); // 用于标识模块
-    rect->setFlag(QGraphicsItem::ItemIsSelectable);
+    void MainWindow::drawModule(qreal x, qreal y, const QString &label, const QColor &color)
+    {
+        const int moduleWidth = 150;
+        const int moduleHeight = 80;
 
-    // 添加文字
-    QStringList lines = label.split("\\n");
-    for (int i = 0; i < lines.size(); i++) {
-        scene->addText(lines[i])->setPos(x + 5, y + 5 + i * 15);
+        // 自定义带高光和阴影的 QGraphicsRectItem
+        class HighlightRectItem : public QGraphicsRectItem {
+        public:
+            HighlightRectItem(qreal x, qreal y, qreal w, qreal h, const QColor& c)
+                : QGraphicsRectItem(x, y, w, h), baseColor(c), hover(false) {
+                setAcceptHoverEvents(true);
+                setFlag(QGraphicsItem::ItemIsSelectable);
+            }
+
+            void setLabel(const QStringList& lines) { labelLines = lines; }
+
+        protected:
+            void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override {
+                painter->setRenderHint(QPainter::Antialiasing, true);
+
+                QRectF r = rect();
+
+                //  阴影效果：悬停且未选中时显示
+                if (hover && !isSelected()) {
+                    QRectF shadowRect = r.adjusted(15, 15, 17, 17);
+                    painter->setBrush(QColor(0, 0, 0, 100));
+                    painter->setPen(Qt::NoPen);
+                    painter->drawRoundedRect(shadowRect.translated(10, 10), 16, 16);
+                }
+
+                //  主体矩形
+                painter->setBrush(baseColor);
+                painter->setPen(QPen(Qt::black, 2));
+                painter->drawRoundedRect(r, 8, 8);
+
+                //  文字内容
+                painter->setPen(Qt::black);
+                for (int i = 0; i < labelLines.size(); ++i) {
+                    painter->drawText(r.x() + 8, r.y() + 24 + i * 18, labelLines[i]);
+                }
+
+                //  高光边框
+                if (isSelected()) {
+                    QRectF outer = r.adjusted(-5, -5, 5, 5);
+                    QPen glowPen(QColor(230, 30, 120), 4);
+                    glowPen.setJoinStyle(Qt::MiterJoin);
+                    painter->setPen(glowPen);
+                    painter->setBrush(Qt::NoBrush);
+                    painter->drawRoundedRect(outer, 10, 10);
+                }
+            }
+
+            void hoverEnterEvent(QGraphicsSceneHoverEvent*) override {
+                hover = true;
+                setCursor(Qt::PointingHandCursor);
+                update();
+            }
+
+            void hoverLeaveEvent(QGraphicsSceneHoverEvent*) override {
+                hover = false;
+                unsetCursor();
+                update();
+            }
+
+            void mousePressEvent(QGraphicsSceneMouseEvent *event) override {
+                QGraphicsItem::mousePressEvent(event);
+                update();
+                if (scene()) scene()->update();
+            }
+
+        private:
+            QColor baseColor;
+            QStringList labelLines;
+            bool hover;
+        };
+
+        auto rect = new HighlightRectItem(x, y, moduleWidth, moduleHeight, color);
+        rect->setData(0, label);
+        rect->setLabel(label.split("\\n"));
+        scene->addItem(rect);
+
+        // 自动取消其他项的选中状态 + 响应选中自己时展示信息
+        connect(scene, &QGraphicsScene::selectionChanged, this, [=]() {
+            if (rect->isSelected()) {
+                QString name = label.split('\n').first();
+                infoManager->showInfo(name);
+            }
+        });
     }
-
-    // 监听点击自己时显示模块信息
-    connect(scene, &QGraphicsScene::selectionChanged, this, [=]() {
-        if (rect->isSelected()) {
-            QString name = label.split('\n').first();
-            infoManager->showInfo(name);
-        }
-    });
-}
-

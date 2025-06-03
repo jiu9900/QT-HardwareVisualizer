@@ -125,12 +125,8 @@ void InfoManager::showInfo(const QString &moduleName)
             info = "这是 L3Cache3：连接 L2Cache3，容量 2MB。";
         } else if (moduleName == "MemoryNode0") {
             info = "这是内存模块 MemoryNode0：容量 8GB，DDR4。";
-        } else if (moduleName == "L3Group") {
-            info = "这是 L3 缓存组的综合信息：4 路 L3 缓存，共享型设计，总容量 8MB。";
-        } else if (moduleName == "BusNode") {
+        }  else if (moduleName == "BusNode") {
             info = "这是 Bus 总线节点：用于核心互联，每个 Node 支持多个端口通信。";
-        } else {
-            info = "未知模块：" + moduleName;
         }
     }
 
